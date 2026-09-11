@@ -118,5 +118,49 @@ export const api = {
     });
     if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
     return res.json();
+  },
+
+  async stage1Identify(binId, item) {
+    const res = await fetch(`${API_BASE_URL}/dustbins/stage1-identify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ binId, item })
+    });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return res.json();
+  },
+
+  async stage2ConfirmDrop(binId, dropped, weightGrams = 30) {
+    const res = await fetch(`${API_BASE_URL}/dustbins/stage2-confirm-drop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ binId, dropped, weightGrams })
+    });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return res.json();
+  },
+
+  async getPrediction() {
+    const res = await fetch(`${API_BASE_URL}/dustbins/prediction`);
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return res.json();
+  },
+
+  async simulateCrisis(scenario = 'WATER_PIPE_BURST') {
+    const res = await fetch(`${API_BASE_URL}/crisis/simulate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario })
+    });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return res.json();
+  },
+
+  async resetCrisis() {
+    const res = await fetch(`${API_BASE_URL}/crisis/reset`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    return res.json();
   }
 };

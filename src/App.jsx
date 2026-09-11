@@ -17,6 +17,7 @@ import VisualIntersection from './components/dashboard/VisualIntersection';
 import UrbanMonitoring from './components/dashboard/UrbanMonitoring';
 import FleetTracker from './components/dashboard/FleetTraker';
 import { VirtualESP32 } from './services/virtualHardware';
+import { api } from './services/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('traffic');
@@ -100,6 +101,7 @@ export default function App() {
 
   const [emergencyCorridor, setEmergencyCorridor] = useState(false);
   const [autoSimulate, setAutoSimulate] = useState(true);
+  const [crisisActive, setCrisisActive] = useState(false);
 
 
   const [fleet, setFleet] = useState([
@@ -191,6 +193,80 @@ export default function App() {
       addLog('INFO', nextState ? 'Inflow Reservoir Pump: ON' : 'Inflow Reservoir Pump: OFF');
       return { ...prev, pumpStatus: nextState };
     });
+  };
+
+  const handleSimulateCrisis = async () => {
+    try {
+      await api.simulateCrisis('WATER_PIPE_BURST');
+    } catch (e) {}
+
+    setCrisisActive(true);
+
+    // 1. Water: Pressure drops, critical leak in Sector 4
+    setWaterMetrics(prev => ({
+      ...prev,
+      leakStatus: 'CRITICAL LEAK (SECTOR 4)',
+      pressure: 1.1,
+      flowRate: 58.2,
+      pumpStatus: false
+    }));
+
+    // 2. Traffic: Lane 2 (East) blocked/diverted
+    setLanes(prev => prev.map((l, idx) => {
+      if (idx === 1) return { ...l, name: 'Lane 2 (EAST - ROAD CLOSED)', count: 0 };
+      return { ...l, count: l.count + 4 };
+    }));
+
+    // 3. Waste: Truck rerouted
+    setTruckStatus({
+      id: 'TRUCK WT-04',
+      status: 'Rerouted via Bypass-8 (Flood Avoidance)',
+      eta: '7 mins',
+      target: 'Bypass-8 -> Zone A'
+    });
+
+    // 4. Fleet update
+    setFleet(prev => prev.map(f => f.id === 'LOG-EV44' ? { ...f, status: 'REROUTED: Avoiding Sector 4 Submerged Road' } : f));
+
+    // 5. System alert
+    triggerAlert(
+      'CRITICAL',
+      'ONE-BRAIN CRISIS',
+      'Major Water Pipe Burst in Sector 4! AI Core autonomously: 1) Closed Sluice Valve #4 2) Diverted Eastbound Traffic 3) Rerouted Waste Truck WT-04 via Outer Bypass.'
+    );
+
+    addLog('ALERT', '🚨 ONE-BRAIN CRISIS: Sector 4 Pipe Burst! Cross-module autonomous action triggered across Water, Traffic & Waste.');
+  };
+
+  const handleResetCrisis = async () => {
+    try {
+      await api.resetCrisis();
+    } catch (e) {}
+
+    setCrisisActive(false);
+
+    setWaterMetrics(prev => ({
+      ...prev,
+      leakStatus: 'NOMINAL',
+      pressure: 4.2,
+      flowRate: 34.5
+    }));
+
+    setLanes(prev => prev.map((l, idx) => {
+      if (idx === 1) return { ...l, name: 'Lane 2 (East)', count: 4 };
+      return { ...l, count: Math.max(2, l.count - 4) };
+    }));
+
+    setTruckStatus({
+      id: 'TRUCK WT-04',
+      status: 'Standby / Route Ready',
+      eta: '4 mins',
+      target: 'Zone A - Bin #01'
+    });
+
+    setFleet(prev => prev.map(f => f.id === 'LOG-EV44' ? { ...f, status: 'Corridor Inbound' } : f));
+
+    addLog('INFO', '✅ Crisis Resolved: Water pipeline restored. Traffic and Waste routes normalized.');
   };
 
 
@@ -378,6 +454,93 @@ export default function App() {
           <div style={{ ...styles.kpiVal, color: '#38bdf8', fontSize: '15px' }}>
             ONLINE <span style={styles.kpiUnit}>3 ESP32/CAMS</span>
           </div>
+        </div>
+      </div>
+
+      {/* One-Brain Cross-Module Crisis Demo Banner */}
+      <div style={{
+        margin: '0 0 16px 0',
+        padding: '12px 16px',
+        borderRadius: '10px',
+        border: crisisActive ? '1px solid #ef4444' : '1px solid #1e293b',
+        backgroundColor: crisisActive ? 'rgba(239, 68, 68, 0.14)' : '#070d1f',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px',
+        boxShadow: crisisActive ? '0 0 20px rgba(239, 68, 68, 0.25)' : 'none'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '24px' }}>{crisisActive ? '🚨' : '🧠'}</span>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <strong style={{ color: crisisActive ? '#f87171' : '#38bdf8', fontSize: '13px', letterSpacing: '0.3px' }}>
+                {crisisActive ? 'CRITICAL EVENT ACTIVE: WATER PIPELINE BURST (SECTOR 4)' : 'ONE-BRAIN CROSS-SYSTEM CRISIS SIMULATOR (SIH PS-26222)'}
+              </strong>
+              <span style={{
+                fontSize: '9px',
+                fontWeight: '800',
+                padding: '2px 7px',
+                borderRadius: '4px',
+                backgroundColor: crisisActive ? '#ef4444' : 'rgba(56, 189, 248, 0.15)',
+                color: crisisActive ? '#fff' : '#38bdf8',
+                border: crisisActive ? '1px solid #f87171' : '1px solid #0284c7'
+              }}>
+                {crisisActive ? '⚡ AUTONOMOUS RIPPLE ACTIVE' : '3-SYSTEM COORDINATION'}
+              </span>
+            </div>
+            <p style={{ margin: '3px 0 0 0', color: '#94a3b8', fontSize: '11px' }}>
+              {crisisActive 
+                ? 'Water Burst in Sector 4 ➔ Sluice #04 shut ➔ Eastbound Traffic diverted (Lane 2 closed) ➔ Municipal Waste Truck WT-04 rerouted to Bypass-8!'
+                : 'Demonstrate live cross-module ripple effect to judges: How a single civic incident coordinates Water, Traffic & Waste simultaneously.'}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {crisisActive ? (
+            <button
+              onClick={handleResetCrisis}
+              style={{
+                backgroundColor: '#10b981',
+                color: '#020617',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>🔄</span>
+              <span>RESTORE NORMAL CITY GRID</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleSimulateCrisis}
+              style={{
+                backgroundColor: '#dc2626',
+                color: '#fff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)'
+              }}
+            >
+              <span>⚡</span>
+              <span>SIMULATE WATER BURST (CROSS-SYSTEM DEMO)</span>
+            </button>
+          )}
         </div>
       </div>
 
